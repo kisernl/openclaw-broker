@@ -62,9 +62,44 @@ SENSITIVE_HEADERS = {"authorization", "x-api-key", "x-auth-token", "x-secret-key
 SENSITIVE_PARAMS = {"api_key", "secret", "token", "access_token", "client_secret"}
 SENSITIVE_BODY_FIELDS = AUTH_BODY_FIELDS
 
+# API domains where ALL requests require approval, even if no auth header is
+# present yet. This catches the pattern where OpenClaw probes unauthenticated
+# first (getting a 401) and then asks the user for credentials inline.
+# By intercepting before the first request lands, we prevent that inline prompt.
+REQUIRE_APPROVAL_HOSTS = {
+    "api.github.com",
+    "gitlab.com",
+    "api.linear.app",
+    "api.notion.com",
+    "slack.com",
+    "api.slack.com",
+    "api.twitter.com",
+    "api.x.com",
+    "api.stripe.com",
+    "api.sendgrid.com",
+    "api.twilio.com",
+    "hooks.zapier.com",
+}
+
+# LLM provider domains — pass through without approval.
+# These carry the model API key (provisioned by the broker operator),
+# not third-party credentials that OpenClaw should never see.
+PASSTHROUGH_HOSTS = {
+    "openrouter.ai",
+    "generativelanguage.googleapis.com",
+    "api.openai.com",
+    "api.anthropic.com",
+    "api.groq.com",
+    "api.mistral.ai",
+}
+
 
 class CredentialBroker:
     async def request(self, flow: http.HTTPFlow) -> None:
+        host = urlparse(flow.request.pretty_url).hostname or ""
+        if any(host == h or host.endswith("." + h) for h in PASSTHROUGH_HOSTS):
+            return
+
         requires_auth, auth_signal = self._detect_auth(flow)
 
         if not requires_auth:
@@ -136,6 +171,10 @@ class CredentialBroker:
     # ------------------------------------------------------------------ #
 
     def _detect_auth(self, flow: http.HTTPFlow) -> tuple[bool, str]:
+        host = urlparse(flow.request.pretty_url).hostname or ""
+        if any(host == h or host.endswith("." + h) for h in REQUIRE_APPROVAL_HOSTS):
+            return True, f"known_api_host:{host}"
+
         headers = {k.lower(): v for k, v in flow.request.headers.items()}
 
         for h in AUTH_HEADERS:

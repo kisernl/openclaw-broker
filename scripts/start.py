@@ -30,8 +30,8 @@ LOG_DIR = os.path.join(ROOT, "logs")
 CERTS_DIR = os.path.join(ROOT, "certs")
 PROXY_URL_FILE = os.path.join(RUN_DIR, "proxy_url.txt")
 
-PROXY_PORT = int(os.environ.get("PROXY_PORT", "8080"))
-UI_PORT = int(os.environ.get("UI_PORT", "5000"))
+PROXY_PORT = None
+UI_PORT = None
 
 
 # ------------------------------------------------------------------ #
@@ -146,13 +146,15 @@ def main():
     except ImportError:
         pass
 
+    global PROXY_PORT, UI_PORT
+    PROXY_PORT = int(os.environ.get("PROXY_PORT", "8080"))
+    UI_PORT = int(os.environ.get("UI_PORT", "5000"))
+
     print("\n=== OpenClaw Credential Broker — Starting ===\n")
 
     _check_env("E2B_API_KEY")
 
-    use_ngrok = not os.environ.get("PROXY_URL", "").strip()
-    if use_ngrok:
-        _check_env("NGROK_AUTHTOKEN")
+    use_tunnel = not os.environ.get("PROXY_URL", "").strip()
 
     _ensure_dirs()
 
@@ -164,14 +166,17 @@ def main():
         _start_daemon(
             "mitmproxy",
             [
-                sys.executable, "-m", "mitmproxy.tools.main",
-                "mitmdump",
+                os.path.join(os.path.dirname(sys.executable), "mitmdump"),
                 "-s", os.path.join(ROOT, "proxy", "addon.py"),
                 "--listen-port", str(PROXY_PORT),
                 "--listen-host", "0.0.0.0",
                 "--set", f"confdir={CERTS_DIR}",
                 "--set", "ssl_insecure=false",
+                # Pass LLM provider traffic through without MITM interception
+                "--ignore-hosts",
+                r"(openrouter\.ai|generativelanguage\.googleapis\.com|api\.openai\.com|api\.anthropic\.com|api\.groq\.com|api\.mistral\.ai)",
             ],
+            env={"APPROVAL_UI_URL": f"http://localhost:{UI_PORT}"},
         )
         # Wait for port AND cert file (cert is written before port is open, but be safe)
         _wait_for_port(PROXY_PORT, "mitmproxy")
@@ -192,7 +197,7 @@ def main():
 
     # ---- Step 3: ngrok tunnel (local only) ----
     print("\n[3/5] Proxy tunnel")
-    if not use_ngrok:
+    if not use_tunnel:
         proxy_url = os.environ["PROXY_URL"]
         print(f"  Using fixed PROXY_URL: {proxy_url}")
         with open(PROXY_URL_FILE, "w") as f:

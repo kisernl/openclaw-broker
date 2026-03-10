@@ -6,7 +6,7 @@ This runs as a background process (started by start.py). It stays alive
 for the duration of the session. When it exits, the tunnel closes and
 the E2B sandbox loses its proxy route (requests fail closed).
 
-Not used when PROXY_URL is set in the environment (e.g. Railway deployment).
+Not used when PROXY_URL is set in the environment.
 """
 
 import os
@@ -39,11 +39,6 @@ def main() -> None:
 
     if NGROK_AUTHTOKEN:
         conf.get_default().auth_token = NGROK_AUTHTOKEN
-    else:
-        print(
-            "[ngrok] WARNING: NGROK_AUTHTOKEN not set. "
-            "TCP tunnels require an authtoken on the free ngrok tier."
-        )
 
     print(f"[ngrok] Opening TCP tunnel to localhost:{PROXY_PORT}...")
     # TCP tunnel is required — mitmproxy speaks the HTTP CONNECT proxy protocol,
