@@ -1,0 +1,10 @@
+certs/
+.env
+run/
+logs/
+__pycache__/
+*.pyc
+*.pyo
+*.pid
+nohup.out
+.DS_Store

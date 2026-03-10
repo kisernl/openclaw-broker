@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw Credential Broker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      padding: 32px 24px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; }
+    .badge {
+      background: #dc2626;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+    }
+    .badge.zero { background: #16a34a; }
+    nav a {
+      font-size: 0.875rem;
+      color: #2563eb;
+      text-decoration: none;
+      margin-left: 16px;
+    }
+    nav a:hover { text-decoration: underline; }
+    .idle {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-left: 4px solid #dc2626;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .method {
+      background: #1e40af;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .url {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.82rem;
+      color: #374151;
+      word-break: break-all;
+    }
+    .signal {
+      font-size: 0.8rem;
+      color: #92400e;
+      background: #fef3c7;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .timestamp {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-left: auto;
+    }
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+      margin-top: 14px;
+    }
+    select, input[type="password"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: #fff;
+      color: #1a1a1a;
+    }
+    select:focus, input[type="password"]:focus {
+      outline: 2px solid #2563eb;
+      outline-offset: 1px;
+      border-color: transparent;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .btn-approve {
+      flex: 1;
+      padding: 9px 0;
+      background: #16a34a;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-approve:hover { background: #15803d; }
+    .btn-deny {
+      padding: 9px 20px;
+      background: #fff;
+      color: #dc2626;
+      border: 1px solid #dc2626;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-deny:hover { background: #fef2f2; }
+    .footnote {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: 32px;
+      text-align: center;
+    }
+    .auto-refresh {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      text-align: right;
+      margin-bottom: 16px;
+    }
+  </style>
+  <meta http-equiv="refresh" content="3">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Credential Approval Required</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      {% set count = pending | length %}
+      <span class="badge {% if count == 0 %}zero{% endif %}">
+        {{ count }} pending
+      </span>
+      <nav>
+        <a href="/">Pending</a>
+        <a href="/audit-log">Audit Log</a>
+      </nav>
+    </div>
+  </header>
+
+  <p class="auto-refresh">Auto-refreshes every 3 seconds</p>
+
+  {% if not pending %}
+    <div class="idle">No pending requests. OpenClaw is idle.</div>
+  {% else %}
+    {% for request_id, req in pending.items() %}
+    <div class="card">
+      <div class="card-meta">
+        <span class="method">{{ req.method }}</span>
+        <span class="url">{{ req.url }}</span>
+        <span class="timestamp">{{ req.timestamp }}</span>
+      </div>
+      <div class="card-meta">
+        <span class="signal">{{ req.auth_signal }}</span>
+      </div>
+
+      <form method="POST" action="/approve/{{ request_id }}">
+        <label for="ctype-{{ request_id }}">Credential type</label>
+        <select id="ctype-{{ request_id }}" name="credential_type" required>
+          <option value="bearer">Bearer Token</option>
+          <option value="api_key_header">API Key (Header: X-API-Key)</option>
+          <option value="api_key_query">API Key (Query Param)</option>
+          <option value="basic">Basic Auth (base64 user:pass)</option>
+        </select>
+
+        <label for="cval-{{ request_id }}">Credential value</label>
+        <input
+          type="password"
+          id="cval-{{ request_id }}"
+          name="credential_value"
+          placeholder="Paste your credential here"
+          required
+          autocomplete="off"
+        >
+
+        <div class="actions">
+          <button type="submit" class="btn-approve">Approve &amp; Inject</button>
+        </div>
+      </form>
+
+      <form method="POST" action="/deny/{{ request_id }}" style="margin-top:8px;">
+        <button type="submit" class="btn-deny">Deny Request</button>
+      </form>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <p class="footnote">
+    Credentials entered here are injected directly into the request
+    and are never stored or logged.
+  </p>
+</body>
+</html>

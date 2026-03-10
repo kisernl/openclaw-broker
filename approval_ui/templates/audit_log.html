@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Log — OpenClaw Credential Broker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      padding: 32px 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; }
+    nav a {
+      font-size: 0.875rem;
+      color: #2563eb;
+      text-decoration: none;
+      margin-left: 16px;
+    }
+    nav a:hover { text-decoration: underline; }
+    .empty {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      color: #6b7280;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 0.875rem;
+    }
+    thead {
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 600;
+      color: #374151;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    .action-approved {
+      color: #16a34a;
+      font-weight: 600;
+    }
+    .action-denied {
+      color: #dc2626;
+      font-weight: 600;
+    }
+    .url-cell {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+      max-width: 360px;
+    }
+    .id-cell {
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+    .footnote {
+      font-size: 0.78rem;
+      color: #9ca3af;
+      margin-top: 24px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Audit Log</h1>
+    <nav>
+      <a href="/">Pending</a>
+      <a href="/audit-log">Audit Log</a>
+    </nav>
+  </header>
+
+  {% if not entries %}
+    <div class="empty">No audit entries yet.</div>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>Credential Type</th>
+          <th>URL</th>
+          <th>Request ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+        <tr>
+          <td>{{ entry.timestamp }}</td>
+          <td class="action-{{ entry.action }}">{{ entry.action }}</td>
+          <td>{{ entry.credential_type or "—" }}</td>
+          <td class="url-cell">{{ entry.url }}</td>
+          <td class="id-cell">{{ entry.request_id[:8] }}…</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <p class="footnote">
+    The audit log records that a credential was provided, but never the credential value itself.
+  </p>
+</body>
+</html>
